@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Codegraph 代码图谱",
+    "description": "为项目建立代码图谱索引，并向智能体提供 codegraph 系列工具：explore、search、node、callers、callees、impact、files、status。"
+  }
+}

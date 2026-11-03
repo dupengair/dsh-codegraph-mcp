@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Codegraph",
+    "description": "Indexes a project's code graph and gives the agent the codegraph tools: explore, search, node, callers, callees, impact, files, and status."
+  }
+}
