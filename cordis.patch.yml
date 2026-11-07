@@ -1,14 +1,23 @@
+# codegraph-mcp：把本机的 codegraph CLI 接成 DSH 的 stdio MCP 服务器。
+#
+# 这里不写死任何机器路径。command 与 args 里的 !!js 表达式在插件加载时求值：
+#   1. 先看 CODEGRAPH_NODE / CODEGRAPH_JS 环境变量（手动指定时优先）；
+#   2. 再依次探测常见全局 npm 根（Windows %APPDATA%\npm、node 自带的 lib/node_modules、
+#      /usr/local/lib、Homebrew、~/.npm-global 等）里的 @colbymchenry/codegraph-<平台>-<架构>；
+#   3. 都没有就返回空串 —— MCP 启动会失败并在插件页报错，按 README「找不到 codegraph」一节处理。
+#
+# 项目不在这里固定：工具调用时传 projectPath（目标项目需先 codegraph init）。
 - insert:
     - id: codegraph-mcp
       name: '@deepseek-ai/dsh-mcp-client'
       config:
         serverName: codegraph
         transport: stdio
-        command: 'C:/Users/dupengair/AppData/Roaming/npm/node_modules/@colbymchenry/codegraph/node_modules/@colbymchenry/codegraph-win32-x64/node.exe'
+        command: !!js "(()=>{const fs=process.getBuiltinModule('node:fs'),p=process.getBuiltinModule('node:path'),os=process.getBuiltinModule('node:os');if(process.env.CODEGRAPH_NODE)return process.env.CODEGRAPH_NODE;const t=process.platform+'-'+process.arch,roots=[process.env.APPDATA&&p.join(process.env.APPDATA,'npm','node_modules'),p.join(p.dirname(process.execPath),'..','..','lib','node_modules'),'/usr/local/lib/node_modules','/opt/homebrew/lib/node_modules','/usr/lib/node_modules',p.join(os.homedir(),'.npm-global','lib','node_modules')].filter(Boolean);for(const root of roots){const d=p.join(root,'@colbymchenry','codegraph','node_modules','@colbymchenry','codegraph-'+t);if(fs.existsSync(p.join(d,'lib','dist','bin','codegraph.js')))return process.platform==='win32'?p.join(d,'node.exe'):process.execPath}return ''})()"
         args:
           - --liftoff-only
           - --disable-warning=ExperimentalWarning
-          - 'C:/Users/dupengair/AppData/Roaming/npm/node_modules/@colbymchenry/codegraph/node_modules/@colbymchenry/codegraph-win32-x64/lib/dist/bin/codegraph.js'
+          - !!js "(()=>{const fs=process.getBuiltinModule('node:fs'),p=process.getBuiltinModule('node:path'),os=process.getBuiltinModule('node:os');if(process.env.CODEGRAPH_JS)return process.env.CODEGRAPH_JS;const t=process.platform+'-'+process.arch,roots=[process.env.APPDATA&&p.join(process.env.APPDATA,'npm','node_modules'),p.join(p.dirname(process.execPath),'..','..','lib','node_modules'),'/usr/local/lib/node_modules','/opt/homebrew/lib/node_modules','/usr/lib/node_modules',p.join(os.homedir(),'.npm-global','lib','node_modules')].filter(Boolean);for(const root of roots){const d=p.join(root,'@colbymchenry','codegraph','node_modules','@colbymchenry','codegraph-'+t),js=p.join(d,'lib','dist','bin','codegraph.js');if(fs.existsSync(js))return js}return ''})()"
           - serve
           - --mcp
         env:

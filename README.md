@@ -8,7 +8,11 @@ DeepSeek Harness（下称 DSH）的**纯配置型 bundle**。
 `mcp__codegraph__*` 工具（`codegraph_explore`、`codegraph_search`、`codegraph_node`、
 `callers`、`callees`、`impact`、`files`、`status`）。
 
-> 设计要点：**不写死任何项目路径**。服务器以「无默认项目」模式启动，每次调用都由调用方显式传
+> 设计要点一：**不写死任何机器路径**。`command` 与 `args` 里的 `!!js` 表达式在插件加载时求值，
+> 依次查看 `CODEGRAPH_NODE` / `CODEGRAPH_JS` 环境变量、探测常见全局 npm 根，找到 codegraph 平台包里的
+> `node.exe` 与 `lib/dist/bin/codegraph.js`。Windows / macOS / Linux 都能用，换电脑不用改配置。
+>
+> 设计要点二：**不写死项目路径**。服务器以「无默认项目」模式启动，每次调用都由调用方显式传
 > `projectPath`，所以在同一个 DSH 里可以分析任意多个已建索引的目录，换项目不用改插件。
 
 ---
@@ -30,7 +34,7 @@ codegraph-mcp/
 | 文件 | 作用 | 是否必需 |
 | --- | --- | --- |
 | `package.json` | DSH 靠 `dsh.bundle.patch` 找到补丁文件；`exports` 让 GUI 能读到 `locale/*.json` 与 `./icon`；`files` 是打包白名单 | 必需 |
-| `cordis.patch.yml` | 声明一个 `@deepseek-ai/dsh-mcp-client` 实例，写死的是**运行时命令**而不是项目路径 | 必需 |
+| `cordis.patch.yml` | 声明一个 `@deepseek-ai/dsh-mcp-client` 实例；`command`/`args` 里的 `!!js` 表达式在加载时探测本机 codegraph 的位置，**不含任何机器路径** | 必需 |
 | `icon.svg` | 插件卡片图标；也可删掉并去掉 `exports["./icon"]` | 可选 |
 | `locale/en.json`、`locale/zh.json` | 卡片和详情页的标题与描述，按界面语言切换 | 可选 |
 
@@ -38,20 +42,19 @@ codegraph-mcp/
 
 ```json
 {
-  "name": "@local/codegraph-mcp",
+  "name": "dsh-codegraph-mcp",
   "version": "0.1.0",
-  "private": true,
   "type": "module",
   "exports": {
     "./locale/*.json": "./locale/*.json",
     "./icon": "./icon.svg"
   },
-  "files": ["cordis.patch.yml", "locale/*.json", "icon.svg"],
+  "files": ["cordis.patch.yml", "locale/*.json", "icon.svg", "LICENSE", "README.md"],
   "dsh": { "bundle": { "patch": "./cordis.patch.yml" } }
 }
 ```
 
-- `name` 会作为安装后的包名出现在 profile 里，改成你喜欢的 scope 即可（例如 `@yourname/dsh-codegraph-mcp`）。
+- `name` 会作为安装后的包名出现在 profile 里（发布到 npm 用的就是这个 `dsh-codegraph-mcp`）。
 - 想让插件限定 DSH 版本，可加 `"engines": { "dsh": ">=0.2.0" }`；不满足时安装会被拒绝并提示用
   `dsh plugin allow-version` 显式豁免。注意预发布版（例如 `0.2.1-rc.5`）要写含预发布的范围才能匹配上。
 
@@ -78,7 +81,12 @@ codegraph-mcp/
 
 ## 安装
 
-### 方式一：本地目录（开发/自用，推荐）
+### 方式一：从 npm 安装（推荐）
+
+1. DSH 侧边栏 → **插件** → **添加插件**，填包名 `dsh-codegraph-mcp`（或命令行 `dsh plugin add dsh-codegraph-mcp`）。
+2. 安装完成后点 **立即启用**，然后**重启 DSH**。
+
+### 方式二：本地目录（开发/自用）
 
 1. 把本仓库放到任意固定目录，**之后不要移动**（见「注意事项」中的 junction 说明）。
 2. 打开 DSH 侧边栏 → **插件** → **添加插件**（或点旁边的箭头 → **安装第三方插件**）。
@@ -90,9 +98,9 @@ codegraph-mcp/
 `package.json` 的 `dsh.profile.bundles`。因为是链接安装，**改了本仓库的文件后重启 DSH 就生效**，
 不需要重新安装。
 
-### 方式二：Git 仓库
+### 方式三：Git 仓库
 
-发布到 GitHub 后，同一入口选择 Git 地址即可（`https://github.com/<you>/<repo>.git`）。
+同一入口选择 Git 地址即可（`https://github.com/dupengair/dsh-codegraph-mcp.git`）。
 本 bundle 无依赖，安装器不需要额外跑构建。
 
 ### 卸载
@@ -207,30 +215,28 @@ env:
 
 ---
 
-## 适配你自己的环境
+## 找不到 codegraph 时
 
-本仓库里 `cordis.patch.yml` 的 `command` / `args` 目前是**作者机器上的绝对路径**（上面配置片段的
-`<you>` 只是占位），克隆后必须先改成你自己的。需要改两处（都在 `cordis.patch.yml`）：
+插件加载时会自己探测，正常情况下不用配任何路径。探测顺序：
 
-1. `command`：codegraph 自带运行时的 `node.exe`（或 PATH 上的 `node`）。
-2. `args` 第三项：codegraph CLI 入口 `.../lib/dist/bin/codegraph.js`。
+1. 环境变量 `CODEGRAPH_NODE`（`command`）与 `CODEGRAPH_JS`（args 里的 CLI 入口）；
+2. 常见全局 npm 根里的 `@colbymchenry/codegraph/node_modules/@colbymchenry/codegraph-<平台>-<架构>`：
+   `%APPDATA%\npm\node_modules`、`<node 安装目录>\..\..\lib\node_modules`、
+   `/usr/local/lib/node_modules`、`/opt/homebrew/lib/node_modules`、`/usr/lib/node_modules`、
+   `~/.npm-global/lib/node_modules`；
+3. 都没有就返回空串 —— MCP 启动失败，DSH 的插件/日志里能看到 `spawn` 相关报错。
 
-查路径：
+这时按情况处理：
 
-```powershell
-npm root -g
-# 例：C:\Users\<you>\AppData\Roaming\npm\node_modules
-```
-
-于是 Windows 上形如：
-
-```
-<npm root -g>/@colbymchenry/codegraph/node_modules/@colbymchenry/codegraph-win32-x64/node.exe
-<npm root -g>/@colbymchenry/codegraph/node_modules/@colbymchenry/codegraph-win32-x64/lib/dist/bin/codegraph.js
-```
-
-macOS / Linux 请用 `npm root -g` 下同名包中对应平台的子包（目录名不是 `codegraph-win32-x64`），
-或者把 `command` 直接写成 PATH 上的 `node`，`args` 第三项改成该平台的 `codegraph.js`。
+- **没装 codegraph**：`npm install -g @colbymchenry/codegraph`，重启 DSH。
+- **装在非常规位置**（pnpm、nvm、自定义 prefix）：在 patch 里给 `env` 补两条显式路径，重启 DSH：
+  ```yaml
+  env:
+    CODEGRAPH_MCP_TOOLS: 'explore,node,search,callers,callees,impact,files,status'
+    CODEGRAPH_NODE: 'C:/path/to/node.exe'
+    CODEGRAPH_JS: 'C:/path/to/codegraph.js'
+  ```
+  （`npm root -g` 可查全局根；Windows 上是 `<全局根>/@colbymchenry/codegraph/node_modules/@colbymchenry/codegraph-win32-x64/`。）
 
 > 为什么要用内置 `node.exe` 而不是 `codegraph.cmd`：Node 24 在 Windows 上 spawn `.cmd`
 > 会抛 `EINVAL`（`spawn EPERM`/`EINVAL`），而 MCP 子进程是直接 spawn、不经 shell。
@@ -240,8 +246,8 @@ macOS / Linux 请用 `npm root -g` 下同名包中对应平台的子包（目录
 
 ## 注意事项
 
-- **路径写死是本仓库的已知成本。** 换机器、换 npm 安装位置（比如改用 pnpm 或 nvm）都要回来改
-  `command` / `args`。
+- **探测靠「常见全局 npm 根」的启发式。** 用 pnpm 全局装、或用自定义 prefix 时可能探不到，
+  用上面的 `CODEGRAPH_NODE` / `CODEGRAPH_JS` 显式指定即可（也是后续版本要做成界面配置的原因）。
 - **不要移动或删除本目录。** profile 里存的是 `link:`/junction 指向它；搬走之后插件会加载失败，
   需要重新安装（或改 junction）。
 - **删除或重建索引前先退出 DSH。** 运行中的 server 会占用 `.codegraph/codegraph.db`，
@@ -262,15 +268,16 @@ macOS / Linux 请用 `npm root -g` 下同名包中对应平台的子包（目录
 
 ## 发布前检查清单（给作者）
 
-- [ ] 替换 `cordis.patch.yml` 里两处绝对路径（或改成占位符 + README 说明），别把本机用户名带进仓库。
-- [ ] 决定 `package.json` 的 `name`/`version`；若要上架，把 `private: true` 去掉。
-- [ ] 补一个 `LICENSE`（建议 MIT），README 里同步声明。
+- [x] `cordis.patch.yml` 已改成运行时探测，仓库里不含任何本机路径。
+- [x] `package.json`：name `dsh-codegraph-mcp`、version `0.1.0`、无 `private`、补 repository/homepage/bugs/author。
+- [x] `LICENSE`（MIT）。
 - [ ] 确认 `icon.svg` 与两份 `locale/*.json` 是最终文案。
-- [ ] 在干净机器上前提条件验证一遍：安装 → 重启 → 对一个已 `codegraph init` 的项目发
+- [ ] `npm publish` 前 `npm pack --dry-run` 核对文件清单。
+- [ ] 在干净机器上验证一遍：安装 → 重启 → 对一个已 `codegraph init` 的项目发
       `codegraph_explore`（带 `projectPath`）→ 确认返回源码而非报错。
 
 ---
 
 ## License
 
-尚未附带 LICENSE 文件。发布前请补充；若无特别说明，建议 MIT。
+MIT，见 [LICENSE](./LICENSE)。

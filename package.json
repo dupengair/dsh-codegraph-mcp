@@ -1,7 +1,27 @@
 {
-  "name": "@local/codegraph-mcp",
+  "name": "dsh-codegraph-mcp",
   "version": "0.1.0",
-  "private": true,
+  "private": false,
+  "description": "DSH 插件：把本机 codegraph CLI 接成 MCP 服务器，为智能体提供代码图谱查询工具（explore / search / node / callers / callees / impact / files / status）。零依赖、纯配置，运行时自动探测 codegraph 安装位置。",
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "mcp",
+    "codegraph",
+    "code-graph",
+    "code-intelligence"
+  ],
+  "license": "MIT",
+  "author": "dupengair",
+  "homepage": "https://github.com/dupengair/dsh-codegraph-mcp#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dupengair/dsh-codegraph-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/dupengair/dsh-codegraph-mcp/issues"
+  },
   "type": "module",
   "exports": {
     "./locale/*.json": "./locale/*.json",
@@ -10,7 +30,9 @@
   "files": [
     "cordis.patch.yml",
     "locale/*.json",
-    "icon.svg"
+    "icon.svg",
+    "LICENSE",
+    "README.md"
   ],
   "dsh": {
     "bundle": {
